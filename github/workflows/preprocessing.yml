@@ -1,1 +1,77 @@
+# .github/workflows/preprocessing.yml
+# ─────────────────────────────────────────────────────────────────
+# GitHub Actions Workflow — Otomasi Preprocessing Heart Disease
+# Trigger: setiap push ke branch main ATAU manual via workflow_dispatch
+# Output : heart_disease_preprocessing/ di-commit kembali ke repo
+# ─────────────────────────────────────────────────────────────────
 
+name: Automated Preprocessing
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'preprocessing/**'
+      - '.github/workflows/preprocessing.yml'
+  workflow_dispatch:   # bisa dijalankan manual dari tab Actions
+
+jobs:
+  preprocess:
+    name: Run Preprocessing Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout kode dari repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Python 3.12
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # 3. Cache pip agar lebih cepat
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements_preprocess.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4. Install dependensi
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy scikit-learn
+
+      # 5. Jalankan script automate preprocessing
+      - name: Run automate preprocessing
+        run: |
+          cd preprocessing
+          python automate_ArjunSinaga.py
+
+      # 6. Tampilkan hasil (untuk log)
+      - name: Show output files
+        run: |
+          echo "=== File hasil preprocessing ==="
+          ls -lh preprocessing/heart_disease_preprocessing/
+          echo ""
+          echo "=== 5 baris pertama train.csv ==="
+          head -n 6 preprocessing/heart_disease_preprocessing/train.csv
+          echo ""
+          echo "=== 5 baris pertama test.csv ==="
+          head -n 6 preprocessing/heart_disease_preprocessing/test.csv
+
+      # 7. Commit dan push hasil preprocessing ke repo
+      - name: Commit preprocessed dataset
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add preprocessing/heart_disease_preprocessing/
+          git diff --staged --quiet || git commit -m "chore: update preprocessed dataset [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
